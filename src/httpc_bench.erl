@@ -5,66 +5,56 @@
     run/0
 ]).
 
--define(N, 2048000).
-
--define(CLIENTS, [
-    httpc_bench_buoy,
-    httpc_bench_dlhttpc,
+-define(Client_List, [
+    httpc_bench_erlArango,
     httpc_bench_hackney,
     httpc_bench_httpc,
-    httpc_bench_ibrowse,
-    httpc_bench_katipo
+    httpc_bench_ibrowse
 ]).
--define(CONCURENCIES, [32, 64, 128, 512, 2048, 4096]).
--define(POOL_SIZES, [8, 16, 32, 64, 128, 256]).
 
-%% public
+-define(CycleCount , 200000).
+-define(PoolSize_List,    [8, 16, 32, 64, 128, 256]).
+-define(Concurrency_List, [32, 64, 128, 512, 2048, 4096]).
+
 run() ->
     error_logger:tty(false),
-    io:format("Running benchmark...~n~n" ++
-        "Client  PoolSize  Concurency  Requests/s  Error %~n" ++
-        [$= || _ <- lists:seq(1, 49)] ++ "~n", []),
-    run_client(?CLIENTS, ?POOL_SIZES, ?CONCURENCIES, ?N).
+    io:format("Running benchmark...~n~n" ++ "Client    PoolSize  Concurency  Requests/s  Error %~n" ++ [$= || _ <- lists:seq(1, 51)] ++ "~n", []),
+    run_client(?Client_List, ?PoolSize_List, ?Concurrency_List, ?CycleCount).
 
-%% private
+run_client([Client | T], PoolSize_List, Concurrency_List, CycleCount) ->
+    run_pool_size(PoolSize_List, Client, Concurrency_List, CycleCount),
+    run_client(T, PoolSize_List, Concurrency_List, CycleCount);
+run_client([], _PoolSize_List, _Concurrency_List, _CycleCount) ->
+    ok.
+
+run_pool_size([PoolSize | T], Client, Concurrency_List, CycleCount) ->
+    run_concurrency(Concurrency_List, Client, PoolSize, CycleCount),
+    run_pool_size(T, Client, Concurrency_List, CycleCount);
+run_pool_size([], Client, _Concurrency_List, _CycleCount) ->
+    {_Prefix, ClientTail} = lists:split(12, atom_to_list(Client)),
+    io:format("~p test over-----------------------------~n", [ClientTail]),
+    ok.
+
+run_concurrency([Concurrency | T], Client, PoolSize, CycleCount) ->
+    Client:start(PoolSize),
+    {_Prefix, Client2} = lists:split(12, atom_to_list(Client)),
+    Name = name(Client2, PoolSize, Concurrency),
+    Fun = fun() -> Client:get() end,
+    TimingOpts = [{name, Name}, {concurrency, Concurrency}, {iterations, CycleCount}, {output, "output/" ++ atom_to_list(Name)}],
+    Results = timing_hdr:run(Fun, TimingOpts),
+    Qps = lookup(success, Results) / (lookup(total_time, Results) / 1000000),
+    Errors = lookup(errors, Results) / lookup(iterations, Results) * 100,
+    io:format("~-10s ~7B ~11B ~11B ~8.1f~n", [Client2, PoolSize, Concurrency, trunc(Qps), Errors]),
+    Client:stop(),
+    run_concurrency( T, Client, PoolSize, CycleCount);
+run_concurrency([], _Client, _PoolSize, _CycleCount) ->
+    ok.
+
 lookup(Key, List) ->
     case lists:keyfind(Key, 1, List) of
         false -> undefined;
         {_, Value} -> Value
     end.
 
-name(Client, PoolSize, Concurency) ->
-    list_to_atom(Client ++ "_" ++ integer_to_list(PoolSize) ++
-        "_" ++ integer_to_list(Concurency)).
-
-run_client([], _PoolSizes, _Concurencies, _N) ->
-    ok;
-run_client([Client | T], PoolSizes, Concurencies, N) ->
-    run_pool_size(Client, PoolSizes, Concurencies, N),
-    run_client(T, PoolSizes, Concurencies, N).
-
-run_pool_size(_Client, [], _Concurencies, _N) ->
-    ok;
-run_pool_size(Client, [PoolSize | T], Concurencies, N) ->
-    run_concurency(Client, PoolSize, Concurencies, N),
-    run_pool_size(Client, T, Concurencies, N).
-
-run_concurency(_Client, _PoolSize, [], _N) ->
-    ok;
-run_concurency(Client, PoolSize, [Concurency | T], N) ->
-    Client:start(PoolSize),
-    {_Prefix, Client2} = lists:split(12, atom_to_list(Client)),
-    Name = name(Client2, PoolSize, Concurency),
-    Fun = fun() -> Client:get() end,
-    Results = timing_hdr:run(Fun, [
-        {name, Name},
-        {concurrency, Concurency},
-        {iterations, N},
-        {output, "output/" ++ atom_to_list(Name)}
-    ]),
-    Qps = lookup(success, Results) / (lookup(total_time, Results) / 1000000),
-    Errors = lookup(errors, Results) / lookup(iterations, Results) * 100,
-    io:format("~-8s ~7B ~11B ~11B ~8.1f~n",
-        [Client2, PoolSize, Concurency, trunc(Qps), Errors]),
-    Client:stop(),
-    run_concurency(Client, PoolSize, T, N).
+name(Client, PoolSize, Concurrency) ->
+    list_to_atom(Client ++ "_" ++ integer_to_list(PoolSize) ++ "_" ++ integer_to_list(Concurrency)).

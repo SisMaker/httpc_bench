@@ -2,10 +2,6 @@
   {description, "Erlang HTTP client benchmarks"},
   {vsn, "0.1.0"},
   {registered, []},
-  {applications, [
-    kernel,
-    stdlib
-  ]},
-  {mod, []},
+  {applications, [kernel, stdlib]},
   {env, []}
 ]}.

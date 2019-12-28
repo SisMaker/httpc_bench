@@ -1,0 +1,8 @@
++K true
++A 100
+-detached
+-noinput
+-noshell
++sub true
++swct eager
+-s httpc_bench_start start_server
