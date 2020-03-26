@@ -11,12 +11,12 @@
 
 %% public
 get() ->
-    agHttpCli:callAgency(tt, {<<"GET">>, <<"/">>, [], []}, 5000),
+    agHttpCli:callAgency(tt, <<"GET ">>, <<"/">>, [], undefined),
     ok.
 
 start(PoolSize) ->
     application:start(erlArango),
-    agHttpCli:startPool(tt, [{poolSize, PoolSize}, {baseUrl, ?URL}], []).
+    agHttpCli:startPool(tt, [{poolSize, PoolSize}, {dbName, <<>>}, {baseUrl, ?URL}], []).
 
 stop() ->
     ok = application:stop(erlArango).

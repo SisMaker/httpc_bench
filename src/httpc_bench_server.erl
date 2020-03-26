@@ -75,7 +75,7 @@ loop(Socket, Buffer) ->
                   "Server: httpc_bench\r\n",
                   "Date: Tue, 07 Mar 2017 01:10:09 GMT\r\n",
                   "Content-Length: 12\r\n\r\n",
-                  "httpc_bench!">> || _ <- lists:seq(1, N)],
+                  "{\"hello\":\"world!\"}">> || _ <- lists:seq(1, N)],
             case gen_tcp:send(Socket, Responses) of
                 ok ->
                     loop(Socket, Buffer2);
