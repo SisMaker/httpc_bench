@@ -15,7 +15,7 @@ get() ->
     ok.
 
 start(PoolSize) ->
-    application:start(erlArango),
+    application:ensure_all_started(erlArango),
     agHttpCli:startPool(tt, [{poolSize, PoolSize}, {dbName, <<>>}, {baseUrl, ?URL}], []).
 
 stop() ->
